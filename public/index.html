@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TicketGuard Prototype</title>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:1100px;margin:30px auto;padding:0 20px;color:#17324d;background:#f7fafc}
+    select{width:100%;padding:10px;margin:8px 0;border:1px solid #bdc9d2;border-radius:7px;font-size:14px}
+    details{margin-top:12px;background:#f3f6f8;padding:10px;border-radius:7px}.statusGuide{font-size:13px;line-height:1.7;margin-top:8px}
+    h1{margin-bottom:4px}.sub{color:#52606d}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:white;border:1px solid #dce5eb;border-radius:12px;padding:18px;box-shadow:0 2px 8px #17324d12}label{display:block;margin-top:10px;font-weight:bold}input,button{padding:10px;margin-top:5px;border:1px solid #bdc9d2;border-radius:7px;font-size:14px}input{width:calc(100% - 22px)}button{background:#1f6f8b;color:white;cursor:pointer;border:0}button.secondary{background:#52606d}.ticket{border-top:1px solid #e1e8ed;padding:12px 0}.status{color:#1f6f8b;font-weight:bold}.history{font-size:13px;line-height:1.6}.chat{height:150px;overflow:auto;background:#f3f6f8;padding:10px;margin:10px 0}.msg{margin:6px 0}.error{color:#a33}.ok{color:#17663b}
+  </style>
+</head>
+<body>
+  <h1>TicketGuard</h1>
+  <div class="sub">Official-provider verification + blockchain ticket memory prototype</div>
+  <p><b>Demo note:</b> The official provider, payment, and transfer are simulated. Blockchain functions can be connected after deployment of the Solidity contract.</p>
+
+  <section class="card marketplace"><h2>Marketplace</h2><button onclick="loadTickets()">Refresh tickets</button><select id="ticketSelect" onchange="showSelectedTicket()"><option>Loading tickets...</option></select><div id="tickets"></div><details><summary>Status guide</summary><div class="statusGuide"><b>Owned</b> — Ticket is held by the current owner and is not listed for resale.<br/><b>Listed</b> — Ticket passed verification and is available for purchase.<br/><b>PaymentConfirmed</b> — Buyer payment has been confirmed.<br/><b>TransferPending</b> — Payment is complete and official ownership transfer is pending.<br/><b>TransferCompleted</b> — Official transfer is complete and the buyer is the new owner.</div></details></section>
+
+  <div class="grid">
+    <section class="card"><h2>Seller: verify and list</h2>
+      <label>Ticket ID</label><input id="sellId" value="SISTIC-1001" />
+      <label>Seller account</label><input id="seller" value="alice" />
+      <label>Resale price (SGD)</label><input id="price" type="number" value="115" oninput="checkPriceLimit()" />
+      <p id="priceLimit" class="sub">Maximum resale price: loading...</p>
+      <br/><button onclick="verifyAndList()">Verify and list</button><p id="sellResult"></p>
+    </section>
+    <section class="card"><h2>Buyer: purchase</h2>
+      <label>Ticket ID</label><input id="buyId" value="SISTIC-1001" />
+      <label>Buyer account</label><input id="buyer" value="bob" />
+      <label>Payment method</label><select id="payment"><option>Mock Apple Pay</option><option>Mock Credit Card</option><option>Mock PayNow</option><option>Mock Bank Transfer</option></select>
+      <br/><button onclick="buy()">Pay and transfer</button><p id="buyResult"></p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:18px"><h2>Ticket chain memory</h2><div id="history">Select a ticket from the marketplace.</div></section>
+  <section class="card" style="margin-top:18px"><h2>AI Agent</h2><div id="chat" class="chat"></div><input id="agentInput" placeholder="Ask: Is this ticket real?" /><br/><button onclick="askAgent()">Ask agent</button></section>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    async function loadTickets(){
+      const tickets = await fetch('/api/tickets').then(r=>r.json());
+      $('ticketSelect').innerHTML = tickets.length ? tickets.map(t => `<option value="${t.ticketId}">${t.ticketId} — Seat ${t.section}-${t.row}-${t.seat} — ${t.owner} — ${t.status}</option>`).join('') : '<option>No tickets found</option>';
+      window.marketplaceTickets=tickets;
+      showSelectedTicket();
+    }
+    function showSelectedTicket(){
+      const t=(window.marketplaceTickets||[]).find(t=>t.ticketId===$('ticketSelect').value);
+      if(!t){ $('tickets').innerHTML='<p>No tickets found.</p>'; return; }
+      const meaning={Owned:'Not listed for resale.',Listed:'Available for purchase.',PaymentConfirmed:'Payment confirmed; transfer is being prepared.',TransferPending:'Official ownership transfer is pending.',TransferCompleted:'Official transfer completed; buyer is the new owner.'}[t.status]||'See the Status guide below.';
+      $('tickets').innerHTML=`<div class="ticket"><b>${t.ticketId}</b> — ${t.eventName}<br>Seat: ${t.section}-${t.row}-${t.seat}<br>Holder: <b>${t.owner}</b><br>Resale price: ${t.resalePrice ? `S$${t.resalePrice}` : '—'}<br>Original price: S$${t.originalPrice}<br>Status: <span class="status">${t.status}</span><br><span class="sub">${meaning}</span><br>${t.status==='Listed' ? `<button onclick="selectTicket('${t.ticketId}')">Buy this ticket</button>` : '<span class="sub">Not currently listed for resale</span>'} <button class="secondary" onclick="showHistory('${t.ticketId}')">View chain memory</button></div>`;
+    }
+    async function selectTicket(id){
+      $('buyId').value=id;
+      $('buyId').focus();
+      await showHistory(id);
+      $('buyResult').textContent='Ticket selected. Enter your buyer account and pay.';
+      $('buyResult').className='';
+    }
+    async function updatePriceLimit(){
+      const id=$('sellId').value.trim();
+      if(!id){ $('priceLimit').textContent='Enter a ticket ID to see the maximum resale price.'; return; }
+      const r=await fetch('/api/tickets/'+encodeURIComponent(id));
+      if(!r.ok){ $('priceLimit').textContent='Ticket not found. Enter a valid ticket ID.'; $('price').removeAttribute('max'); return; }
+      const t=await r.json();
+      const max=Number((t.originalPrice*1.2).toFixed(2));
+      $('price').max=max;
+      $('priceLimit').textContent=`Maximum resale price: S$${max.toFixed(2)} (original price S$${Number(t.originalPrice).toFixed(2)} × 1.2)`;
+      checkPriceLimit();
+    }
+    function checkPriceLimit(){
+      const max=Number($('price').max), price=Number($('price').value);
+      if(max && price>max){ $('priceLimit').className='error'; $('priceLimit').textContent=`Price too high. Maximum allowed: S$${max.toFixed(2)}.`; }
+      else if(max){ $('priceLimit').className='sub'; $('priceLimit').textContent=`Maximum resale price: S$${max.toFixed(2)} (original price × 1.2)`; }
+    }
+    async function showHistory(id){
+      const t=await fetch('/api/tickets/'+id).then(r=>r.json());
+      $('history').innerHTML=`<b>${t.ticketId}</b><div class="history">${t.history.map((h,i)=>`${i+1}. <b>${h.type}</b> — owner: ${h.owner}, status: ${h.status}, time: ${h.time}`).join('<br>')}</div>`;
+    }
+    async function verifyAndList(){
+      const body={ticketId:$('sellId').value,seller:$('seller').value,resalePrice:Number($('price').value)};
+      const r=await fetch('/api/list',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json(); $('sellResult').className=r.ok?'ok':'error'; $('sellResult').textContent=d.message; loadTickets(); showHistory(body.ticketId);
+    }
+    async function buy(){
+      const body={ticketId:$('buyId').value,buyer:$('buyer').value,paymentMethod:$('payment').value}; const r=await fetch('/api/buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json(); $('buyResult').className=r.ok?'ok':'error'; $('buyResult').textContent=d.message; loadTickets(); showHistory(body.ticketId);
+    }
+    async function askAgent(){
+      const q=$('agentInput').value; $('chat').innerHTML+=`<div class="msg"><b>You:</b> ${q}</div>`; const d=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})}).then(r=>r.json()); $('chat').innerHTML+=`<div class="msg"><b>Agent:</b> ${d.reply}</div>`; $('agentInput').value='';
+    }
+    $('sellId').addEventListener('input', updatePriceLimit);
+    updatePriceLimit();
+    loadTickets();
+  </script>
+</body>
+</html>
