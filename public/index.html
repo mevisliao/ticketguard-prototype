@@ -35,7 +35,7 @@
   </div>
 
   <section class="card" style="margin-top:18px"><h2>Ticket chain memory</h2><div id="history">Select a ticket from the marketplace.</div></section>
-  <section class="card" style="margin-top:18px"><h2>AI Agent</h2><div id="chat" class="chat"></div><input id="agentInput" placeholder="Ask: Is this ticket real?" /><br/><button onclick="askAgent()">Ask agent</button></section>
+  <section class="card" style="margin-top:18px"><h2>AI Agent</h2><p class="sub">Choose a common question or type your own question.</p><div class="suggestedQuestions"><button class="secondary" onclick="askSuggested('How do I sell or resell a ticket?')">How do I sell a ticket?</button> <button class="secondary" onclick="askSuggested('How do I buy a ticket?')">How do I buy a ticket?</button> <button class="secondary" onclick="askSuggested('What does each ticket status mean?')">What do statuses mean?</button> <button class="secondary" onclick="askSuggested('What is the maximum resale price?')">What is the price limit?</button></div><div id="chat" class="chat"></div><input id="agentInput" placeholder="Ask: Is this ticket real?" /><br/><button onclick="askAgent()">Ask agent</button><details><summary>Instructions</summary><div class="statusGuide"><b>Seller steps</b><br/>1. Enter the Ticket ID and seller account.<br/>2. Check the displayed maximum resale price.<br/>3. Enter a selling price within the limit.<br/>4. Click Verify and list.<br/><br/><b>Buyer steps</b><br/>1. Find a ticket with status Listed in Marketplace.<br/>2. Filter by maximum price or Seat section if needed.<br/>3. Select the ticket and click Buy this ticket.<br/>4. Enter your buyer account and choose a payment method.<br/>5. Click Pay and transfer.</div></details></section>
 
   <script>
     const $ = id => document.getElementById(id);
@@ -94,6 +94,10 @@
     }
     async function buy(){
       const body={ticketId:$('buyId').value,buyer:$('buyer').value,paymentMethod:$('payment').value}; const r=await fetch('/api/buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json(); $('buyResult').className=r.ok?'ok':'error'; $('buyResult').textContent=d.message; loadTickets(); showHistory(body.ticketId);
+    }
+    function askSuggested(question){
+      $('agentInput').value=question;
+      askAgent();
     }
     async function askAgent(){
       const q=$('agentInput').value; $('chat').innerHTML+=`<div class="msg"><b>You:</b> ${q}</div>`; const d=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})}).then(r=>r.json()); $('chat').innerHTML+=`<div class="msg"><b>Agent:</b> ${d.reply}</div>`; $('agentInput').value='';
