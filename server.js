@@ -42,6 +42,11 @@ function verify(id,seller) {
 const server=http.createServer(async (req,res)=>{
   const url=new URL(req.url,`http://${req.headers.host}`);
   try {
+    if(req.method==="GET" && url.pathname==="/api/tickets/export") {
+      const data=JSON.stringify([...tickets.values()], null, 2);
+      res.writeHead(200,{"Content-Type":"application/json","Content-Disposition":"attachment; filename=ticket-bank.json"});
+      return res.end(data);
+    }
     if(req.method==="GET" && url.pathname==="/api/tickets") {
       const event=(url.searchParams.get("event")||"").toLowerCase();
       // Marketplace buyers should be able to discover listed tickets without
