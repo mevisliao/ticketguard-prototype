@@ -33,6 +33,7 @@ function verify(id,seller) {
   const t=tickets.get(id);
   if(!t) return {ok:false,message:"Ticket not found in mock official provider."};
   if(!t.valid) return {ok:false,message:"Official provider says the ticket is invalid."};
+  if(t.status==="Used") return {ok:false,message:"Ticket has already been redeemed and cannot be resold."};
   if(t.owner!==seller) return {ok:false,message:"Seller is not the current official owner."};
   if(!t.transferable) return {ok:false,message:"Official provider says the ticket is not transferable."};
   if(["Listed","PaymentConfirmed","TransferPending"].includes(t.status)) return {ok:false,message:"Ticket already has an active resale."};
@@ -55,6 +56,17 @@ const server=http.createServer(async (req,res)=>{
     if(req.method==="POST") {
       const data=await body(req);
       if(url.pathname==="/api/verify") { const r=verify(data.ticketId,data.seller); return json(res,r.ok?200:400,r); }
+      if(url.pathname==="/api/redeem") {
+        const t=tickets.get(data.ticketId);
+        if(!t) return json(res,404,{message:"Ticket not found in mock official provider."});
+        if(t.status==="Used") return json(res,400,{message:"Ticket has already been redeemed."});
+        if(t.status!=="Owned") return json(res,400,{message:"Only an owned ticket can be redeemed."});
+        t.status="Used";
+        t.valid=false;
+        t.transferable=false;
+        history(t,"Redeemed",{redeemedBy:data.redeemedBy||"official-venue"});
+        return json(res,200,{message:"Ticket redeemed at the venue. It can no longer be resold.",blockchainEvent:"TicketRedeemed",ticket:t});
+      }
       if(url.pathname==="/api/list") {
         const r=verify(data.ticketId,data.seller); if(!r.ok)return json(res,400,r);
         const t=r.ticket, max=t.originalPrice*1.2;
