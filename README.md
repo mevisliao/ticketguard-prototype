@@ -63,7 +63,7 @@ can be purchased.
 - `Listed`: verified and available for purchase.
 - `PaymentConfirmed`: buyer payment has been confirmed.
 - `TransferPending`: payment is complete and official transfer is pending.
-- `TransferCompleted`: official transfer is complete and the buyer is the new owner.
+- `TransferCompleted`: transfer event is complete; after the event, the ticket's current status becomes `Owned` for the new owner.
 
 ### 5. Ticket chain memory
 

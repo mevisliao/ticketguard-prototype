@@ -16,7 +16,7 @@
   <div class="sub">Official-provider verification + blockchain ticket memory prototype</div>
   <p><b>Demo note:</b> The official provider, payment, and transfer are simulated. Blockchain functions can be connected after deployment of the Solidity contract.</p>
 
-  <section class="card marketplace"><h2>Marketplace</h2><button onclick="loadTickets()">Refresh tickets</button><select id="ticketSelect" onchange="showSelectedTicket()"><option>Loading tickets...</option></select><div id="tickets"></div><details><summary>Status guide</summary><div class="statusGuide"><b>Owned</b> — Ticket is held by the current owner and is not listed for resale.<br/><b>Listed</b> — Ticket passed verification and is available for purchase.<br/><b>PaymentConfirmed</b> — Buyer payment has been confirmed.<br/><b>TransferPending</b> — Payment is complete and official ownership transfer is pending.<br/><b>TransferCompleted</b> — Official transfer is complete and the buyer is the new owner.</div></details></section>
+    <section class="card marketplace"><h2>Marketplace</h2><button onclick="loadTickets()">Refresh tickets</button><select id="ticketSelect" onchange="showSelectedTicket()"><option>Loading tickets...</option></select><div id="tickets"></div><details><summary>Status guide</summary><div class="statusGuide"><b>Owned</b> — Ticket is held by the current owner and is not listed for resale.<br/><b>Listed</b> — Ticket passed verification and is available for purchase.<br/><b>PaymentConfirmed</b> — Buyer payment has been confirmed.<br/><b>TransferPending</b> — Payment is complete and official ownership transfer is pending.<br/><b>TransferCompleted</b> — Transfer event recorded; after completion, the ticket returns to <b>Owned</b> for the new buyer.</div></details></section>
 
   <div class="grid">
     <section class="card"><h2>Seller: verify and list</h2>
@@ -48,7 +48,7 @@
     function showSelectedTicket(){
       const t=(window.marketplaceTickets||[]).find(t=>t.ticketId===$('ticketSelect').value);
       if(!t){ $('tickets').innerHTML='<p>No tickets found.</p>'; return; }
-      const meaning={Owned:'Not listed for resale.',Listed:'Available for purchase.',PaymentConfirmed:'Payment confirmed; transfer is being prepared.',TransferPending:'Official ownership transfer is pending.',TransferCompleted:'Official transfer completed; buyer is the new owner.'}[t.status]||'See the Status guide below.';
+      const meaning={Owned:'Held by the current owner and not listed for resale.',Listed:'Available for purchase.',PaymentConfirmed:'Payment confirmed; transfer is being prepared.',TransferPending:'Official ownership transfer is pending.',TransferCompleted:'Transfer event completed; final ownership is recorded as Owned.'}[t.status]||'See the Status guide below.';
       $('tickets').innerHTML=`<div class="ticket"><b>${t.ticketId}</b> — ${t.eventName}<br>Seat: ${t.section}-${t.row}-${t.seat}<br>Holder: <b>${t.owner}</b><br>Resale price: ${t.resalePrice ? `S$${t.resalePrice}` : '—'}<br>Original price: S$${t.originalPrice}<br>Status: <span class="status">${t.status}</span><br><span class="sub">${meaning}</span><br>${t.status==='Listed' ? `<button onclick="selectTicket('${t.ticketId}')">Buy this ticket</button>` : '<span class="sub">Not currently listed for resale</span>'} <button class="secondary" onclick="showHistory('${t.ticketId}')">View chain memory</button></div>`;
     }
     async function selectTicket(id){
