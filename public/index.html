@@ -92,7 +92,7 @@
         if(!b.time) return -1;
         return new Date(b.time)-new Date(a.time);
       });
-      const formatTime=time=>time ? new Date(time).toISOString().replace('T',' ').replace('Z',' UTC') : 'Initial record';
+      const formatTime=time=>time ? new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Singapore',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(time)).replace(',','')+' SGT' : 'Initial record';
       $('history').innerHTML=`<b>${t.ticketId}</b><div class="history">${history.map(h=>`<b>Time:</b> ${formatTime(h.time)}<br/><b>Event:</b> ${h.type}<br/><b>Owner:</b> ${h.owner}<br/><b>Status:</b> ${h.status}`).join('<br/><br/>')}</div>`;
     }
     async function verifyAndList(){
