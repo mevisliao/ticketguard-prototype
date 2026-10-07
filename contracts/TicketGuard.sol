@@ -25,6 +25,7 @@ contract TicketGuard {
     event PaymentConfirmed(string ticketId, address buyer, uint256 amount);
     event TransferPending(string ticketId);
     event TransferCompleted(string ticketId, address previousOwner, address newOwner);
+    event TicketRedeemed(string ticketId, address owner);
 
     constructor(address _authorizedBackend) {
         organizer = msg.sender;
@@ -91,6 +92,17 @@ contract TicketGuard {
         t.status = Status.TransferCompleted;
         t.lastUpdated = block.timestamp;
         emit TransferCompleted(ticketId, previousOwner, newOwner);
+    }
+
+    function redeemTicket(string memory ticketId) external onlyBackend {
+        Ticket storage t = tickets[ticketId];
+        require(bytes(t.ticketId).length != 0, "Ticket does not exist");
+        require(t.status == Status.Owned, "Ticket is not redeemable");
+        require(t.transferable, "Ticket is not transferable");
+        t.status = Status.Used;
+        t.transferable = false;
+        t.lastUpdated = block.timestamp;
+        emit TicketRedeemed(ticketId, t.currentOwner);
     }
 
     function getTicket(string memory ticketId) external view returns (Ticket memory) {
