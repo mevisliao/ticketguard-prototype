@@ -86,7 +86,13 @@
     }
     async function showHistory(id){
       const t=await fetch('/api/tickets/'+id).then(r=>r.json());
-      $('history').innerHTML=`<b>${t.ticketId}</b><div class="history">${t.history.map((h,i)=>`${i+1}. <b>${h.type}</b> — owner: ${h.owner}, status: ${h.status}, time: ${h.time}`).join('<br>')}</div>`;
+      const history=[...t.history].sort((a,b)=>{
+        if(!a.time && !b.time) return 0;
+        if(!a.time) return 1;
+        if(!b.time) return -1;
+        return new Date(b.time)-new Date(a.time);
+      });
+      $('history').innerHTML=`<b>${t.ticketId}</b><div class="history">${history.map((h,i)=>`${i+1}. <b>${h.type}</b> — time: ${h.time ? new Date(h.time).toLocaleString() : 'Initial record'}<br/>owner: ${h.owner}, status: ${h.status}`).join('<br/><br/>')}</div>`;
     }
     async function verifyAndList(){
       const body={ticketId:$('sellId').value,seller:$('seller').value,resalePrice:Number($('price').value)};
