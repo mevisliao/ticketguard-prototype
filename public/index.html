@@ -41,7 +41,8 @@
     const $ = id => document.getElementById(id);
     async function loadTickets(){
       const tickets = await fetch('/api/tickets').then(r=>r.json());
-      window.marketplaceTickets=tickets;
+      // Buyers should only discover tickets that are actively listed for sale.
+      window.marketplaceTickets=tickets.filter(t=>t.status==='Listed');
       applyTicketFilters();
     }
     function applyTicketFilters(){
