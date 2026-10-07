@@ -92,7 +92,8 @@
         if(!b.time) return -1;
         return new Date(b.time)-new Date(a.time);
       });
-      $('history').innerHTML=`<b>${t.ticketId}</b><div class="history">${history.map((h,i)=>`${i+1}. <b>${h.type}</b> — time: ${h.time ? new Date(h.time).toLocaleString() : 'Initial record'}<br/>owner: ${h.owner}, status: ${h.status}`).join('<br/><br/>')}</div>`;
+      const formatTime=time=>time ? new Date(time).toISOString().replace('T',' ').replace('Z',' UTC') : 'Initial record';
+      $('history').innerHTML=`<b>${t.ticketId}</b><div class="history">${history.map(h=>`<b>Time:</b> ${formatTime(h.time)}<br/><b>Event:</b> ${h.type}<br/><b>Owner:</b> ${h.owner}<br/><b>Status:</b> ${h.status}`).join('<br/><br/>')}</div>`;
     }
     async function verifyAndList(){
       const body={ticketId:$('sellId').value,seller:$('seller').value,resalePrice:Number($('price').value)};
