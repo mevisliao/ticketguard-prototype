@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getOrCreateWallet } from "./walletService.js";
 
 const PORT = process.env.PORT || 3000;
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -77,11 +78,11 @@ const server=http.createServer(async (req,res)=>{
       }
       if(url.pathname==="/api/buy") {
         const t=tickets.get(data.ticketId); if(!t)return json(res,404,{message:"Ticket not found"}); if(t.status!=="Listed")return json(res,400,{message:"Ticket is not listed."});
-        const seller=t.owner;t.status="PaymentConfirmed";history(t,"PaymentConfirmed",{buyer:data.buyer,seller,paymentMethod:data.paymentMethod||"Mock payment"});t.status="TransferPending";history(t,"TransferPending",{buyer:data.buyer,seller});t.owner=data.buyer;t.status="TransferCompleted";history(t,"TransferCompleted",{previousOwner:seller,newOwner:data.buyer});
+        const seller=t.owner;const buyerWallet=getOrCreateWallet(data.buyer);t.status="PaymentConfirmed";history(t,"PaymentConfirmed",{buyer:data.buyer,seller,paymentMethod:data.paymentMethod||"Mock payment"});t.status="TransferPending";history(t,"TransferPending",{buyer:data.buyer,seller});t.owner=data.buyer;t.status="TransferCompleted";history(t,"TransferCompleted",{previousOwner:seller,newOwner:data.buyer,buyerWallet:buyerWallet.address});
         // TransferCompleted is the completed transfer event. The ticket's
         // current state after the event is Owned by the new buyer.
         t.status="Owned";
-        return json(res,200,{message:"Payment confirmed and mock official transfer completed.",blockchainEvent:"TransferCompleted",ticket:t});
+        return json(res,200,{message:"Payment confirmed and mock official transfer completed.",blockchainEvent:"TransferCompleted",wallet:buyerWallet,ticket:t});
       }
       if(url.pathname==="/api/agent") {
         const q=(data.message||"").toLowerCase(); let reply="I can help you verify a ticket, list a ticket, check the 1.2x price limit, or explain transfer status.";
