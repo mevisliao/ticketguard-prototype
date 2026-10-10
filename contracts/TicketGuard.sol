@@ -14,6 +14,7 @@ contract TicketGuard {
         Status status;
         bool transferable;
         uint256 lastUpdated;
+        address pendingBuyer;
     }
 
     mapping(string => Ticket) public tickets;
@@ -51,7 +52,7 @@ contract TicketGuard {
         bool transferable
     ) external onlyOrganizer {
         require(bytes(tickets[ticketId].ticketId).length == 0, "Already exists");
-        tickets[ticketId] = Ticket(ticketId, eventName, seat, originalOwner, originalPrice, 0, Status.Owned, transferable, block.timestamp);
+        tickets[ticketId] = Ticket(ticketId, eventName, seat, originalOwner, originalPrice, 0, Status.Owned, transferable, block.timestamp, address(0));
         emit TicketCreated(ticketId, originalOwner, originalPrice);
     }
 
@@ -71,6 +72,8 @@ contract TicketGuard {
     function confirmPayment(string memory ticketId, address buyer) external onlyBackend {
         Ticket storage t = tickets[ticketId];
         require(t.status == Status.Listed, "Not listed");
+        require(buyer != address(0), "Invalid buyer");
+        t.pendingBuyer = buyer;
         t.status = Status.PaymentConfirmed;
         t.lastUpdated = block.timestamp;
         emit PaymentConfirmed(ticketId, buyer, t.resalePrice);
@@ -87,8 +90,11 @@ contract TicketGuard {
     function completeTransfer(string memory ticketId, address newOwner) external onlyBackend {
         Ticket storage t = tickets[ticketId];
         require(t.status == Status.TransferPending, "Transfer not pending");
+        require(t.pendingBuyer != address(0), "Buyer not confirmed");
+        require(newOwner == t.pendingBuyer, "New owner is not the confirmed buyer");
         address previousOwner = t.currentOwner;
         t.currentOwner = newOwner;
+        t.pendingBuyer = address(0);
         t.status = Status.TransferCompleted;
         t.lastUpdated = block.timestamp;
         emit TransferCompleted(ticketId, previousOwner, newOwner);
