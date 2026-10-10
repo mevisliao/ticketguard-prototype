@@ -59,7 +59,7 @@ contract TicketGuard {
         Ticket storage t = tickets[ticketId];
         require(t.currentOwner == msg.sender, "Not owner");
         require(t.transferable, "Not transferable");
-        require(t.status == Status.Owned || t.status == Status.TransferCompleted, "Cannot list");
+        require(t.status == Status.Owned, "Cannot list");
         require(resalePrice > 0, "Invalid price");
         require(resalePrice <= t.originalPrice * 120 / 100, "Price exceeds 1.2x original price");
         t.resalePrice = resalePrice;
@@ -92,6 +92,10 @@ contract TicketGuard {
         t.status = Status.TransferCompleted;
         t.lastUpdated = block.timestamp;
         emit TransferCompleted(ticketId, previousOwner, newOwner);
+        // TransferCompleted is the event record. The current state after a
+        // successful transfer is Owned by the new owner, matching the backend.
+        t.status = Status.Owned;
+        t.lastUpdated = block.timestamp;
     }
 
     function redeemTicket(string memory ticketId) external onlyBackend {
