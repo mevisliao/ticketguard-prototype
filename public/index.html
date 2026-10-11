@@ -8,7 +8,7 @@
     body{font-family:Arial,sans-serif;max-width:1100px;margin:30px auto;padding:0 20px;color:#17324d;background:#f7fafc}
     select{width:100%;padding:10px;margin:8px 0;border:1px solid #bdc9d2;border-radius:7px;font-size:14px}
     details{margin-top:12px;background:#f3f6f8;padding:10px;border-radius:7px}.statusGuide{font-size:13px;line-height:1.7;margin-top:8px}
-    h1{margin-bottom:4px}.sub{color:#52606d}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:white;border:1px solid #dce5eb;border-radius:12px;padding:18px;box-shadow:0 2px 8px #17324d12}label{display:block;margin-top:10px;font-weight:bold}input,button{padding:10px;margin-top:5px;border:1px solid #bdc9d2;border-radius:7px;font-size:14px}input{width:calc(100% - 22px)}button{background:#1f6f8b;color:white;cursor:pointer;border:0}button.secondary{background:#52606d}.ticket{border-top:1px solid #e1e8ed;padding:12px 0}.status{color:#1f6f8b;font-weight:bold}.history{font-size:13px;line-height:1.6}.chat{height:150px;overflow:auto;background:#f3f6f8;padding:10px;margin:10px 0}.msg{margin:6px 0}.error{color:#a33}.ok{color:#17663b}
+    h1{margin-bottom:4px}.sub{color:#52606d}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:white;border:1px solid #dce5eb;border-radius:12px;padding:18px;box-shadow:0 2px 8px #17324d12}label{display:block;margin-top:10px;font-weight:bold}input,button{padding:10px;margin-top:5px;border:1px solid #bdc9d2;border-radius:7px;font-size:14px}input{width:calc(100% - 22px)}button{background:#1f6f8b;color:white;cursor:pointer;border:0}button.secondary{background:#52606d}.feePolicy{margin-top:14px;padding:10px 12px;background:#f3f6f8;border-left:4px solid #1f6f8b;border-radius:5px;font-size:13px;line-height:1.6;color:#52606d}.ticket{border-top:1px solid #e1e8ed;padding:12px 0}.status{color:#1f6f8b;font-weight:bold}.history{font-size:13px;line-height:1.6}.chat{height:150px;overflow:auto;background:#f3f6f8;padding:10px;margin:10px 0}.msg{margin:6px 0}.error{color:#a33}.ok{color:#17663b}
   </style>
 </head>
 <body>
@@ -30,6 +30,7 @@
       <label>Ticket ID</label><input id="buyId" value="SISTIC-1001" />
       <label>Buyer account</label><input id="buyer" value="bob" />
       <label>Payment method</label><select id="payment"><option>Mock Apple Pay</option><option>Mock Credit Card</option><option>Mock PayNow</option><option>Mock Bank Transfer</option></select>
+      <div class="feePolicy"><b>Fee policy</b><br/>Seller commission: <b>2%</b> of the resale price.<br/>Buyer service fee: <b>3%</b> of the ticket price.<br/>Blockchain gas fee: estimated separately at <b>S$0.50</b>; Seller pays <b>0%</b> gas fee, and the Buyer sees it in the estimated total. If the actual gas is higher, the platform absorbs the difference.</div>
       <p id="buyerQuote" class="sub">Enter or select a Ticket ID to see the estimated buyer total.</p><br/><button onclick="buy()">Pay and transfer</button><p id="buyResult"></p>
     </section>
   </div>
@@ -78,7 +79,7 @@
       const p=t.pricing||{};
       const max=Number(p.maximumResalePrice ?? ((t.originalPrice*1.2-0.5)/1.03).toFixed(2));
       $('price').max=max;
-      $('priceLimit').textContent=`Maximum resale price: S$${max.toFixed(2)} so the buyer's total stays within S$${Number(p.maximumBuyerTotal ?? t.originalPrice*1.2).toFixed(2)} (includes 3% service fee + estimated S$0.50 blockchain fee)`;
+      $('priceLimit').textContent=`Maximum resale price: S$${max.toFixed(2)} (calculated so the buyer's total, including 3% service fee and estimated S$0.50 blockchain fee, stays within the allowed limit)`;
       checkPriceLimit();
     }
     function checkPriceLimit(){
@@ -99,7 +100,7 @@
       }
       const sellerPayout=price-price*0.02;
       $('sellerQuote').className='sub';
-      $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)} | Maximum buyer total: S$${maximumBuyerTotal.toFixed(2)}.`;
+      $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)}.`;
     }
     async function updateBuyerQuote(){
       const id=$('buyId').value.trim(); if(!id){$('buyerQuote').textContent='Enter or select a Ticket ID to see the estimated buyer total.';return;}
