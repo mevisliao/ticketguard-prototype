@@ -96,12 +96,18 @@
       const maximumResalePrice=Number(p.maximumResalePrice||0);
       if(price>maximumResalePrice){
         $('sellerQuote').className='error';
-        $('sellerQuote').textContent=`This price cannot be listed because it would exceed the allowed buyer total. Maximum resale price: S$${maximumResalePrice.toFixed(2)}.`;
+        $('sellerQuote').textContent='This price cannot be listed because it would exceed the allowed buyer total.';
         return;
       }
       const sellerPayout=price-price*0.02;
-      $('sellerQuote').className='sub';
-      $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)}.`;
+      const originalPrice=Number(t.originalPrice||0);
+      if(sellerPayout<originalPrice){
+        $('sellerQuote').className='error';
+        $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)}. This is below the original price of S$${originalPrice.toFixed(2)}.`;
+      } else {
+        $('sellerQuote').className='sub';
+        $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)}.`;
+      }
     }
     async function updateBuyerQuote(){
       const id=$('buyId').value.trim(); if(!id){$('buyerQuote').textContent='Enter or select a Ticket ID to see the estimated buyer total.';return;}
