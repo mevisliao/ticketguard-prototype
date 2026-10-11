@@ -114,7 +114,7 @@
       const r=await fetch('/api/tickets/'+encodeURIComponent(id)); if(!r.ok){$('buyerQuote').textContent='Ticket not found.';return;}
       const t=await r.json(); const p=t.pricing||{};
       if(t.status!=='Listed'){$('buyerQuote').textContent='This ticket is not currently listed for sale. Enter a Ticket ID with status Listed.';return;}
-      $('buyerQuote').textContent=`Estimated buyer payment = Listed price S$${Number(p.resalePrice||t.resalePrice||0).toFixed(2)} + Buyer service fee (3%) S$${Number(p.buyerServiceFee||0).toFixed(2)} = S$${Number(p.estimatedBuyerTotal||0).toFixed(2)}. Maximum buyer total: S$${Number(p.maximumBuyerTotal||0).toFixed(2)}. Blockchain gas is covered by platform fees and is not charged separately.`;
+      $('buyerQuote').innerHTML=`Estimated buyer payment: S$${Number(p.estimatedBuyerTotal||0).toFixed(2)} (Listed price + Buyer service fee)<br/>Blockchain gas is covered by platform fees and is not charged separately.`;
     }
     async function showHistory(id){
       const t=await fetch('/api/tickets/'+id).then(r=>r.json());
