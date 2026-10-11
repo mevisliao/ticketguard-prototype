@@ -12,8 +12,8 @@ const MAX_BUYER_TOTAL_MULTIPLIER = 1.2;
 // Mock estimate used by the demo. In a real deployment this comes from an
 // on-chain gas estimate before the transaction is submitted.
 const ESTIMATED_BLOCKCHAIN_FEE = 0.50;
-// The buyer is charged the estimate shown at checkout. Any difference is
-// absorbed by the platform rather than collected after confirmation.
+// Gas is covered by the platform fees in this pricing model. It is tracked
+// for platform accounting, but is not added as a second buyer charge.
 const MOCK_ACTUAL_BLOCKCHAIN_FEE = 0.62;
 const owners = ["alice", "david", "emma", "frank", "grace", "henry", "irene", "jack", "karen", "leo"];
 const sections = ["A", "B", "C", "D", "E"];
@@ -42,12 +42,12 @@ function history(t,type,extra={}) { t.history.push({type,owner:t.owner,status:t.
 function money(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 function buyerPriceCap(t) { return money(t.originalPrice * MAX_BUYER_TOTAL_MULTIPLIER); }
 function maxResalePrice(t) {
-  return money(Math.max(0, (buyerPriceCap(t) - ESTIMATED_BLOCKCHAIN_FEE) / (1 + BUYER_SERVICE_FEE_RATE)));
+  return money(buyerPriceCap(t) / (1 + BUYER_SERVICE_FEE_RATE));
 }
 function pricing(t, resalePrice=t.resalePrice ?? t.originalPrice) {
   const price = money(resalePrice);
   const buyerServiceFee = money(price * BUYER_SERVICE_FEE_RATE);
-  const buyerTotal = money(price + buyerServiceFee + ESTIMATED_BLOCKCHAIN_FEE);
+  const buyerTotal = money(price + buyerServiceFee);
   const sellerCommission = money(price * SELLER_COMMISSION_RATE);
   return {
     resalePrice: price,
@@ -61,7 +61,7 @@ function pricing(t, resalePrice=t.resalePrice ?? t.originalPrice) {
     sellerCommissionRate: SELLER_COMMISSION_RATE,
     sellerCommission,
     estimatedSellerPayout: money(price - sellerCommission),
-    gasFeePolicy: "Buyer pays the displayed estimate; the platform absorbs any difference from the actual blockchain fee."
+    gasFeePolicy: "Blockchain gas is covered by platform fees and is not charged separately to the buyer or seller."
   };
 }
 function publicTicket(t) { return {...t, pricing: pricing(t)}; }
@@ -120,14 +120,14 @@ const server=http.createServer(async (req,res)=>{
         // TransferCompleted is the completed transfer event. The ticket's
         // current state after the event is Owned by the new buyer.
         t.status="Owned";
-        return json(res,200,{message:"Payment confirmed and mock official transfer completed. The platform absorbed any gas estimate difference.",blockchainEvent:"TransferCompleted",wallet:buyerWallet,pricing:{...quote,actualBlockchainFee:MOCK_ACTUAL_BLOCKCHAIN_FEE,platformAbsorbedGasDifference:money(Math.max(0,MOCK_ACTUAL_BLOCKCHAIN_FEE-ESTIMATED_BLOCKCHAIN_FEE))},ticket:publicTicket(t)});
+        return json(res,200,{message:"Payment confirmed and mock official transfer completed. Blockchain gas was covered by platform fees.",blockchainEvent:"TransferCompleted",wallet:buyerWallet,pricing:{...quote,actualBlockchainFee:MOCK_ACTUAL_BLOCKCHAIN_FEE,platformAbsorbedGasDifference:money(Math.max(0,MOCK_ACTUAL_BLOCKCHAIN_FEE-ESTIMATED_BLOCKCHAIN_FEE))},ticket:publicTicket(t)});
       }
       if(url.pathname==="/api/agent") {
         const q=(data.message||"").toLowerCase(); let reply="I can help you verify a ticket, list a ticket, check the 1.2x price limit, or explain transfer status.";
         if(q.includes("sell")||q.includes("resell"))reply="Enter the official ticket ID and seller account. I will verify ownership and check the maximum buyer total cap, including service fee and estimated blockchain fee.";
         else if(q.includes("verify")||q.includes("real"))reply="Verification must come from the official provider. This prototype uses a mock provider; screenshots alone are not accepted.";
-        else if(q.includes("price")||q.includes("cap")||q.includes("limit"))reply="The buyer's final estimated payment cannot exceed 1.2 times the original ticket price. The cap includes the ticket price, 3% buyer service fee, and the estimated blockchain fee.";
-        else if(q.includes("gas")||q.includes("fee"))reply="The buyer pays the displayed estimated blockchain fee. If the actual on-chain fee is higher, the platform absorbs the difference.";
+        else if(q.includes("price")||q.includes("cap")||q.includes("limit"))reply="The buyer's final payment cannot exceed 1.2 times the original ticket price. The cap includes the ticket price and 3% buyer service fee; gas is covered by platform fees.";
+        else if(q.includes("gas")||q.includes("fee"))reply="Blockchain gas is covered by the platform's buyer and seller fees. It is not charged separately to the buyer or seller, and any variance is absorbed by the platform.";
         return json(res,200,{reply});
       }
     }

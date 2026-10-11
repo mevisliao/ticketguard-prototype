@@ -4,8 +4,8 @@ pragma solidity ^0.8.20;
 contract TicketGuard {
     uint256 public constant BUYER_SERVICE_FEE_BPS = 300; // 3%
     uint256 public constant MAX_BUYER_TOTAL_BPS = 12000; // 1.2x original price
-    // Demo accounting unit. A production deployment should use a configured
-    // quote in the payment currency and keep the buyer charge fixed to quote.
+    // Demo accounting unit for platform cost tracking. It is covered by
+    // platform fees and is not added as a separate buyer charge.
     uint256 public constant ESTIMATED_BLOCKCHAIN_FEE = 50;
 
     enum Status { Issued, Owned, Listed, PaymentConfirmed, TransferPending, TransferCompleted, Cancelled, Used }
@@ -132,7 +132,7 @@ contract TicketGuard {
     }
 
     function buyerTotal(uint256 resalePrice) public pure returns (uint256) {
-        return resalePrice + buyerServiceFee(resalePrice) + ESTIMATED_BLOCKCHAIN_FEE;
+        return resalePrice + buyerServiceFee(resalePrice);
     }
 
     function maximumBuyerTotal(uint256 originalPrice) public pure returns (uint256) {
@@ -141,7 +141,6 @@ contract TicketGuard {
 
     function maximumResalePrice(uint256 originalPrice) public pure returns (uint256) {
         uint256 cap = maximumBuyerTotal(originalPrice);
-        if (cap <= ESTIMATED_BLOCKCHAIN_FEE) return 0;
-        return (cap - ESTIMATED_BLOCKCHAIN_FEE) * 10000 / (10000 + BUYER_SERVICE_FEE_BPS);
+        return cap * 10000 / (10000 + BUYER_SERVICE_FEE_BPS);
     }
 }
