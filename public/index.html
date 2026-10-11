@@ -22,7 +22,7 @@
     <section class="card"><h2>Seller: verify and list</h2>
       <label>Ticket ID</label><input id="sellId" value="SISTIC-1001" />
       <label>Seller account</label><input id="seller" value="alice" />
-      <label>Resale price (SGD)</label><input id="price" type="number" value="115" oninput="checkPriceLimit()" />
+      <label>Resale price (SGD)</label><input id="price" type="number" value="90" oninput="checkPriceLimit()" />
       <p id="priceLimit" class="sub">Maximum resale price: loading...</p><p id="sellerQuote" class="sub"></p>
       <br/><button onclick="verifyAndList()">Verify and list</button><p id="sellResult"></p>
     </section>
@@ -90,8 +90,16 @@
     async function updateSellerQuote(){
       const id=$('sellId').value.trim(); if(!id)return;
       const r=await fetch('/api/tickets/'+encodeURIComponent(id)); if(!r.ok)return;
-      const t=await r.json(); const price=Number($('price').value||0), sellerPayout=price-price*0.02;
-      $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)} | Maximum buyer total is S$${Number(t.pricing?.maximumBuyerTotal||0).toFixed(2)}.`;
+      const t=await r.json(); const price=Number($('price').value||0), p=t.pricing||{};
+      const maximumResalePrice=Number(p.maximumResalePrice||0), maximumBuyerTotal=Number(p.maximumBuyerTotal||0);
+      if(price>maximumResalePrice){
+        $('sellerQuote').className='error';
+        $('sellerQuote').textContent=`This price cannot be listed. It would exceed the buyer's maximum total of S$${maximumBuyerTotal.toFixed(2)}. Maximum resale price: S$${maximumResalePrice.toFixed(2)}.`;
+        return;
+      }
+      const sellerPayout=price-price*0.02;
+      $('sellerQuote').className='sub';
+      $('sellerQuote').textContent=`Estimated seller payout after 2% fee: S$${sellerPayout.toFixed(2)} | Maximum buyer total: S$${maximumBuyerTotal.toFixed(2)}.`;
     }
     async function updateBuyerQuote(){
       const id=$('buyId').value.trim(); if(!id){$('buyerQuote').textContent='Enter or select a Ticket ID to see the estimated buyer total.';return;}
