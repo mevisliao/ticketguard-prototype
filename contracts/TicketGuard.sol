@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 contract TicketGuard {
     uint256 public constant BUYER_SERVICE_FEE_BPS = 300; // 3%
+    uint256 public constant SELLER_COMMISSION_BPS = 300; // 3%
     uint256 public constant MAX_BUYER_TOTAL_BPS = 12000; // 1.2x original price
     // Demo accounting unit for platform cost tracking. It is covered by
     // platform fees and is not added as a separate buyer charge.

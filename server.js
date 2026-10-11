@@ -7,7 +7,7 @@ import { getOrCreateWallet } from "./walletService.js";
 const PORT = process.env.PORT || 3000;
 const root = path.dirname(fileURLToPath(import.meta.url));
 const BUYER_SERVICE_FEE_RATE = 0.03;
-const SELLER_COMMISSION_RATE = 0.02;
+const SELLER_COMMISSION_RATE = 0.03;
 const MAX_BUYER_TOTAL_MULTIPLIER = 1.2;
 // Mock estimate used by the demo. In a real deployment this comes from an
 // on-chain gas estimate before the transaction is submitted.
