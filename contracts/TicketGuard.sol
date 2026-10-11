@@ -2,6 +2,12 @@
 pragma solidity ^0.8.20;
 
 contract TicketGuard {
+    uint256 public constant BUYER_SERVICE_FEE_BPS = 300; // 3%
+    uint256 public constant MAX_BUYER_TOTAL_BPS = 12000; // 1.2x original price
+    // Demo accounting unit. A production deployment should use a configured
+    // quote in the payment currency and keep the buyer charge fixed to quote.
+    uint256 public constant ESTIMATED_BLOCKCHAIN_FEE = 50;
+
     enum Status { Issued, Owned, Listed, PaymentConfirmed, TransferPending, TransferCompleted, Cancelled, Used }
 
     struct Ticket {
@@ -62,17 +68,19 @@ contract TicketGuard {
         require(t.transferable, "Not transferable");
         require(t.status == Status.Owned, "Cannot list");
         require(resalePrice > 0, "Invalid price");
-        require(resalePrice <= t.originalPrice * 120 / 100, "Price exceeds 1.2x original price");
+        require(buyerTotal(resalePrice) <= maximumBuyerTotal(t.originalPrice), "Buyer total exceeds cap");
         t.resalePrice = resalePrice;
         t.status = Status.Listed;
         t.lastUpdated = block.timestamp;
         emit TicketListed(ticketId, msg.sender, resalePrice);
     }
 
-    function confirmPayment(string memory ticketId, address buyer) external onlyBackend {
+    function confirmPayment(string memory ticketId, address buyer, uint256 paidBuyerTotal) external onlyBackend {
         Ticket storage t = tickets[ticketId];
         require(t.status == Status.Listed, "Not listed");
         require(buyer != address(0), "Invalid buyer");
+        require(paidBuyerTotal == buyerTotal(t.resalePrice), "Buyer total does not match quote");
+        require(paidBuyerTotal <= maximumBuyerTotal(t.originalPrice), "Buyer total exceeds cap");
         t.pendingBuyer = buyer;
         t.status = Status.PaymentConfirmed;
         t.lastUpdated = block.timestamp;
@@ -117,5 +125,23 @@ contract TicketGuard {
 
     function getTicket(string memory ticketId) external view returns (Ticket memory) {
         return tickets[ticketId];
+    }
+
+    function buyerServiceFee(uint256 resalePrice) public pure returns (uint256) {
+        return resalePrice * BUYER_SERVICE_FEE_BPS / 10000;
+    }
+
+    function buyerTotal(uint256 resalePrice) public pure returns (uint256) {
+        return resalePrice + buyerServiceFee(resalePrice) + ESTIMATED_BLOCKCHAIN_FEE;
+    }
+
+    function maximumBuyerTotal(uint256 originalPrice) public pure returns (uint256) {
+        return originalPrice * MAX_BUYER_TOTAL_BPS / 10000;
+    }
+
+    function maximumResalePrice(uint256 originalPrice) public pure returns (uint256) {
+        uint256 cap = maximumBuyerTotal(originalPrice);
+        if (cap <= ESTIMATED_BLOCKCHAIN_FEE) return 0;
+        return (cap - ESTIMATED_BLOCKCHAIN_FEE) * 10000 / (10000 + BUYER_SERVICE_FEE_BPS);
     }
 }

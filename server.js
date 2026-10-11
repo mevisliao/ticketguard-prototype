@@ -6,6 +6,15 @@ import { getOrCreateWallet } from "./walletService.js";
 
 const PORT = process.env.PORT || 3000;
 const root = path.dirname(fileURLToPath(import.meta.url));
+const BUYER_SERVICE_FEE_RATE = 0.03;
+const SELLER_COMMISSION_RATE = 0.02;
+const MAX_BUYER_TOTAL_MULTIPLIER = 1.2;
+// Mock estimate used by the demo. In a real deployment this comes from an
+// on-chain gas estimate before the transaction is submitted.
+const ESTIMATED_BLOCKCHAIN_FEE = 0.50;
+// The buyer is charged the estimate shown at checkout. Any difference is
+// absorbed by the platform rather than collected after confirmation.
+const MOCK_ACTUAL_BLOCKCHAIN_FEE = 0.62;
 const owners = ["alice", "david", "emma", "frank", "grace", "henry", "irene", "jack", "karen", "leo"];
 const sections = ["A", "B", "C", "D", "E"];
 const tickets = new Map(Array.from({length:50}, (_, index) => {
@@ -30,6 +39,32 @@ const tickets = new Map(Array.from({length:50}, (_, index) => {
 function json(res, code, data) { res.writeHead(code, {"Content-Type":"application/json"}); res.end(JSON.stringify(data)); }
 function body(req) { return new Promise((resolve,reject)=>{ let s=""; req.on("data",c=>s+=c); req.on("end",()=>{try{resolve(s?JSON.parse(s):{})}catch(e){reject(e)}}); req.on("error",reject); }); }
 function history(t,type,extra={}) { t.history.push({type,owner:t.owner,status:t.status,...extra,time:new Date().toISOString()}); }
+function money(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
+function buyerPriceCap(t) { return money(t.originalPrice * MAX_BUYER_TOTAL_MULTIPLIER); }
+function maxResalePrice(t) {
+  return money(Math.max(0, (buyerPriceCap(t) - ESTIMATED_BLOCKCHAIN_FEE) / (1 + BUYER_SERVICE_FEE_RATE)));
+}
+function pricing(t, resalePrice=t.resalePrice ?? t.originalPrice) {
+  const price = money(resalePrice);
+  const buyerServiceFee = money(price * BUYER_SERVICE_FEE_RATE);
+  const buyerTotal = money(price + buyerServiceFee + ESTIMATED_BLOCKCHAIN_FEE);
+  const sellerCommission = money(price * SELLER_COMMISSION_RATE);
+  return {
+    resalePrice: price,
+    originalPrice: money(t.originalPrice),
+    buyerServiceFeeRate: BUYER_SERVICE_FEE_RATE,
+    buyerServiceFee,
+    estimatedBlockchainFee: ESTIMATED_BLOCKCHAIN_FEE,
+    estimatedBuyerTotal: buyerTotal,
+    maximumBuyerTotal: buyerPriceCap(t),
+    maximumResalePrice: maxResalePrice(t),
+    sellerCommissionRate: SELLER_COMMISSION_RATE,
+    sellerCommission,
+    estimatedSellerPayout: money(price - sellerCommission),
+    gasFeePolicy: "Buyer pays the displayed estimate; the platform absorbs any difference from the actual blockchain fee."
+  };
+}
+function publicTicket(t) { return {...t, pricing: pricing(t)}; }
 function verify(id,seller) {
   const t=tickets.get(id);
   if(!t) return {ok:false,message:"Ticket not found in mock official provider."};
@@ -48,11 +83,11 @@ const server=http.createServer(async (req,res)=>{
       const event=(url.searchParams.get("event")||"").toLowerCase();
       // Marketplace buyers should be able to discover listed tickets without
       // knowing the ticket ID or current owner beforehand.
-      return json(res,200,[...tickets.values()].filter(t=>t.valid && ["Owned","Listed","TransferCompleted"].includes(t.status) && (!event||t.eventName.toLowerCase().includes(event))));
+      return json(res,200,[...tickets.values()].filter(t=>t.valid && ["Owned","Listed","TransferCompleted"].includes(t.status) && (!event||t.eventName.toLowerCase().includes(event))).map(publicTicket));
     }
     if(req.method==="GET" && url.pathname.startsWith("/api/tickets/")) {
       const t=tickets.get(url.pathname.split("/").pop());
-      return t?json(res,200,t):json(res,404,{message:"Ticket not found"});
+      return t?json(res,200,publicTicket(t)):json(res,404,{message:"Ticket not found"});
     }
     if(req.method==="POST") {
       const data=await body(req);
@@ -70,25 +105,29 @@ const server=http.createServer(async (req,res)=>{
       }
       if(url.pathname==="/api/list") {
         const r=verify(data.ticketId,data.seller); if(!r.ok)return json(res,400,r);
-        const t=r.ticket, max=t.originalPrice*1.2;
+        const t=r.ticket, max=maxResalePrice(t), maximumBuyerTotal=buyerPriceCap(t);
         if(!Number.isFinite(data.resalePrice)||data.resalePrice<=0)return json(res,400,{message:"Resale price must be positive."});
-        if(data.resalePrice>max)return json(res,400,{message:`Resale price cannot exceed S$${max.toFixed(2)}.`});
-        t.resalePrice=data.resalePrice;t.status="Listed";history(t,"Listed",{resalePrice:data.resalePrice,maximumPrice:max});
-        return json(res,200,{message:"Ticket listed successfully.",ticket:t});
+        const quote=pricing(t,data.resalePrice);
+        if(data.resalePrice>max)return json(res,400,{message:`This price would make the buyer's estimated total exceed the S$${maximumBuyerTotal.toFixed(2)} cap. Maximum resale price is S$${max.toFixed(2)}.`,pricing:quote});
+        t.resalePrice=money(data.resalePrice);t.status="Listed";history(t,"Listed",{resalePrice:t.resalePrice,maximumBuyerTotal,maximumResalePrice:max,pricing:pricing(t)});
+        return json(res,200,{message:"Ticket listed successfully. Buyer total stays within the cap.",ticket:publicTicket(t)});
       }
       if(url.pathname==="/api/buy") {
         const t=tickets.get(data.ticketId); if(!t)return json(res,404,{message:"Ticket not found"}); if(t.status!=="Listed")return json(res,400,{message:"Ticket is not listed."});
-        const seller=t.owner;const buyerWallet=getOrCreateWallet(data.buyer);t.status="PaymentConfirmed";history(t,"PaymentConfirmed",{buyer:data.buyer,seller,paymentMethod:data.paymentMethod||"Mock payment"});t.status="TransferPending";history(t,"TransferPending",{buyer:data.buyer,seller});t.owner=data.buyer;t.status="TransferCompleted";history(t,"TransferCompleted",{previousOwner:seller,newOwner:data.buyer,buyerWallet:buyerWallet.address});
+        const quote=pricing(t);
+        if(quote.estimatedBuyerTotal>quote.maximumBuyerTotal)return json(res,400,{message:"This ticket exceeds the buyer total spending cap.",pricing:quote});
+        const seller=t.owner;const buyerWallet=getOrCreateWallet(data.buyer);t.status="PaymentConfirmed";history(t,"PaymentConfirmed",{buyer:data.buyer,seller,paymentMethod:data.paymentMethod||"Mock payment",buyerTotal:quote.estimatedBuyerTotal,pricing:quote});t.status="TransferPending";history(t,"TransferPending",{buyer:data.buyer,seller});t.owner=data.buyer;t.status="TransferCompleted";history(t,"TransferCompleted",{previousOwner:seller,newOwner:data.buyer,buyerWallet:buyerWallet.address,chargedBuyerTotal:quote.estimatedBuyerTotal,actualBlockchainFee:MOCK_ACTUAL_BLOCKCHAIN_FEE,platformAbsorbedGasDifference:money(Math.max(0,MOCK_ACTUAL_BLOCKCHAIN_FEE-ESTIMATED_BLOCKCHAIN_FEE))});
         // TransferCompleted is the completed transfer event. The ticket's
         // current state after the event is Owned by the new buyer.
         t.status="Owned";
-        return json(res,200,{message:"Payment confirmed and mock official transfer completed.",blockchainEvent:"TransferCompleted",wallet:buyerWallet,ticket:t});
+        return json(res,200,{message:"Payment confirmed and mock official transfer completed. The platform absorbed any gas estimate difference.",blockchainEvent:"TransferCompleted",wallet:buyerWallet,pricing:{...quote,actualBlockchainFee:MOCK_ACTUAL_BLOCKCHAIN_FEE,platformAbsorbedGasDifference:money(Math.max(0,MOCK_ACTUAL_BLOCKCHAIN_FEE-ESTIMATED_BLOCKCHAIN_FEE))},ticket:publicTicket(t)});
       }
       if(url.pathname==="/api/agent") {
         const q=(data.message||"").toLowerCase(); let reply="I can help you verify a ticket, list a ticket, check the 1.2x price limit, or explain transfer status.";
-        if(q.includes("sell")||q.includes("resell"))reply="Enter the official ticket ID and seller account. I will verify ownership and check the 1.2x price limit.";
+        if(q.includes("sell")||q.includes("resell"))reply="Enter the official ticket ID and seller account. I will verify ownership and check the maximum buyer total cap, including service fee and estimated blockchain fee.";
         else if(q.includes("verify")||q.includes("real"))reply="Verification must come from the official provider. This prototype uses a mock provider; screenshots alone are not accepted.";
-        else if(q.includes("price"))reply="Maximum resale price = original price × 1.2. S$100 allows a maximum of S$120.";
+        else if(q.includes("price")||q.includes("cap")||q.includes("limit"))reply="The buyer's final estimated payment cannot exceed 1.2 times the original ticket price. The cap includes the ticket price, 3% buyer service fee, and the estimated blockchain fee.";
+        else if(q.includes("gas")||q.includes("fee"))reply="The buyer pays the displayed estimated blockchain fee. If the actual on-chain fee is higher, the platform absorbs the difference.";
         return json(res,200,{reply});
       }
     }
