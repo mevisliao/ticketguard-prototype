@@ -113,7 +113,8 @@
       const id=$('buyId').value.trim(); if(!id){$('buyerQuote').textContent='Enter or select a Ticket ID to see the estimated buyer total.';return;}
       const r=await fetch('/api/tickets/'+encodeURIComponent(id)); if(!r.ok){$('buyerQuote').textContent='Ticket not found.';return;}
       const t=await r.json(); const p=t.pricing||{};
-      $('buyerQuote').textContent=`Ticket S$${Number(p.resalePrice||t.resalePrice||0).toFixed(2)} + service fee S$${Number(p.buyerServiceFee||0).toFixed(2)} + estimated blockchain fee S$${Number(p.estimatedBlockchainFee||0).toFixed(2)} = estimated buyer total S$${Number(p.estimatedBuyerTotal||0).toFixed(2)} / maximum buyer total S$${Number(p.maximumBuyerTotal||0).toFixed(2)}. The platform absorbs any gas estimate difference.`;
+      if(t.status!=='Listed'){$('buyerQuote').textContent='This ticket is not currently listed for sale. Enter a Ticket ID with status Listed.';return;}
+      $('buyerQuote').textContent=`Estimated buyer payment = Listed price S$${Number(p.resalePrice||t.resalePrice||0).toFixed(2)} + Buyer service fee (3%) S$${Number(p.buyerServiceFee||0).toFixed(2)} + estimated gas fee S$${Number(p.estimatedBlockchainFee||0).toFixed(2)} = S$${Number(p.estimatedBuyerTotal||0).toFixed(2)}. Maximum buyer total: S$${Number(p.maximumBuyerTotal||0).toFixed(2)}. The platform absorbs any gas estimate difference.`;
     }
     async function showHistory(id){
       const t=await fetch('/api/tickets/'+id).then(r=>r.json());
@@ -143,7 +144,10 @@
     $('sellId').addEventListener('input', updatePriceLimit);
     $('price').addEventListener('input', updateSellerQuote);
     $('buyId').addEventListener('input', updateBuyerQuote);
+    $('buyId').addEventListener('change', updateBuyerQuote);
+    $('buyId').addEventListener('blur', updateBuyerQuote);
     updatePriceLimit();
+    updateBuyerQuote();
     loadTickets();
   </script>
 </body>
