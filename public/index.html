@@ -59,8 +59,8 @@
       const t=(window.filteredMarketplaceTickets||[]).find(t=>t.ticketId===$('ticketSelect').value);
       if(!t){ $('tickets').innerHTML='<p>No tickets found.</p>'; return; }
       const meaning={Owned:'Held by the current owner and not listed for resale.',Listed:'Available for purchase.',PaymentConfirmed:'Payment confirmed; transfer is being prepared.',TransferPending:'Official ownership transfer is pending.',TransferCompleted:'Transfer event completed; final ownership is recorded as Owned.'}[t.status]||'See the Status guide below.';
-      const p=t.pricing||{};
-      $('tickets').innerHTML=`<div class="ticket"><b>${t.ticketId}</b> — ${t.eventName}<br>Seat: ${t.section}-${t.row}-${t.seat}<br>Holder: <b>${t.owner}</b><br>Resale price: ${t.resalePrice ? `S$${t.resalePrice}` : '—'}<br>Original price: S$${t.originalPrice}<br>Status: <span class="status">${t.status}</span><br>${t.status==='Listed' ? `Estimated buyer total: S$${Number(p.estimatedBuyerTotal||0).toFixed(2)} / cap S$${Number(p.maximumBuyerTotal||0).toFixed(2)}<br>` : ''}<span class="sub">${meaning}</span><br>${t.status==='Listed' ? `<button onclick="selectTicket('${t.ticketId}')">Buy this ticket</button>` : '<span class="sub">Not currently listed for resale</span>'} <button class="secondary" onclick="showHistory('${t.ticketId}')">View chain memory</button></div>`;
+      $('tickets').innerHTML=`<div class="ticket"><b>${t.ticketId}</b> — ${t.eventName}<br>Seat: ${t.section}-${t.row}-${t.seat}<br>Holder: <b>${t.owner}</b><br>Resale price: ${t.resalePrice ? `S$${t.resalePrice}` : '—'}<br>Original price: S$${t.originalPrice}<br>Status: <span class="status">${t.status}</span><br><span class="sub">${meaning}</span><br>${t.status==='Listed' ? `<button onclick="selectTicket('${t.ticketId}')">Buy this ticket</button>` : '<span class="sub">Not currently listed for resale</span>'} <button class="secondary" onclick="showHistory('${t.ticketId}')">View chain memory</button></div>`;
+      updateBuyerQuote();
     }
     async function selectTicket(id){
       $('buyId').value=id;
