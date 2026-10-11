@@ -22,7 +22,7 @@
     <section class="card"><h2>Seller: verify and list</h2>
       <label>Ticket ID</label><input id="sellId" />
       <label>Seller account</label><input id="seller" />
-      <label>Resale price (SGD)</label><input id="price" type="number" value="90" oninput="checkPriceLimit()" />
+      <label>Resale price (SGD)</label><input id="price" type="number" oninput="checkPriceLimit()" />
       <p id="priceLimit" class="sub">Maximum resale price: loading...</p><p id="sellerQuote" class="sub"></p>
       <br/><button onclick="verifyAndList()">Verify and list</button><p id="sellResult"></p>
     </section>
@@ -93,6 +93,11 @@
       const id=$('sellId').value.trim(); if(!id)return;
       const r=await fetch('/api/tickets/'+encodeURIComponent(id)); if(!r.ok)return;
       const t=await r.json(); const price=Number($('price').value||0), p=t.pricing||{};
+      if(!price){
+        $('sellerQuote').className='sub';
+        $('sellerQuote').textContent='Enter a resale price to see the estimated seller payout.';
+        return;
+      }
       const maximumResalePrice=Number(p.maximumResalePrice||0);
       if(price>maximumResalePrice){
         $('sellerQuote').className='error';
