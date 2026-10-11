@@ -20,17 +20,17 @@
 
   <div class="grid">
     <section class="card"><h2>Seller: verify and list</h2>
-      <label>Ticket ID</label><input id="sellId" value="SISTIC-1001" />
-      <label>Seller account</label><input id="seller" value="alice" />
+      <label>Ticket ID</label><input id="sellId" />
+      <label>Seller account</label><input id="seller" />
       <label>Resale price (SGD)</label><input id="price" type="number" value="90" oninput="checkPriceLimit()" />
       <p id="priceLimit" class="sub">Maximum resale price: loading...</p><p id="sellerQuote" class="sub"></p>
       <br/><button onclick="verifyAndList()">Verify and list</button><p id="sellResult"></p>
     </section>
     <section class="card"><h2>Buyer: purchase</h2>
-      <label>Ticket ID</label><input id="buyId" value="SISTIC-1001" />
-      <label>Buyer account</label><input id="buyer" value="bob" />
+      <label>Ticket ID</label><input id="buyId" />
+      <label>Buyer account</label><input id="buyer" />
       <label>Payment method</label><select id="payment"><option>Mock Apple Pay</option><option>Mock Credit Card</option><option>Mock PayNow</option><option>Mock Bank Transfer</option></select>
-      <p id="buyerQuote" class="sub">Enter or select a Ticket ID to see the estimated buyer total.</p><br/><button onclick="buy()">Pay and transfer</button><p id="buyResult"></p>
+      <p id="buyerQuote" class="sub">Enter a Ticket ID and Buyer account to see the estimated buyer payment.</p><br/><button onclick="buy()">Pay and transfer</button><p id="buyResult"></p>
     </section>
   </div>
 
@@ -110,7 +110,7 @@
       }
     }
     async function updateBuyerQuote(){
-      const id=$('buyId').value.trim(); if(!id){$('buyerQuote').textContent='Enter or select a Ticket ID to see the estimated buyer total.';return;}
+      const id=$('buyId').value.trim(), buyer=$('buyer').value.trim(); if(!id||!buyer){$('buyerQuote').textContent='Enter a Ticket ID and Buyer account to see the estimated buyer payment.';return;}
       const r=await fetch('/api/tickets/'+encodeURIComponent(id)); if(!r.ok){$('buyerQuote').textContent='Ticket not found.';return;}
       const t=await r.json(); const p=t.pricing||{};
       if(t.status!=='Listed'){$('buyerQuote').textContent='This ticket is not currently listed for sale. Enter a Ticket ID with status Listed.';return;}
@@ -146,6 +146,9 @@
     $('buyId').addEventListener('input', updateBuyerQuote);
     $('buyId').addEventListener('change', updateBuyerQuote);
     $('buyId').addEventListener('blur', updateBuyerQuote);
+    $('buyer').addEventListener('input', updateBuyerQuote);
+    $('buyer').addEventListener('change', updateBuyerQuote);
+    $('buyer').addEventListener('blur', updateBuyerQuote);
     updatePriceLimit();
     updateBuyerQuote();
     loadTickets();
