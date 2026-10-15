@@ -55,7 +55,29 @@ can be purchased.
    becomes available in the Marketplace. The seller's estimated payout is the
    listed price minus the 3% Seller commission.
 
-### 3. Fee policy
+### 3. Ticket Bank for the Seller demo
+
+The repository includes `ticket-bank.xlsx`, a reference dataset containing 50
+mock tickets for Seller demonstrations. It is not connected to the backend and
+does not automatically change the website data.
+
+To use it during a demo:
+
+1. Open `ticket-bank.xlsx` and choose a ticket row.
+2. Copy the `Ticket ID` into the Seller panel.
+3. Copy the matching `Current owner` into the Seller account field.
+4. Check that the ticket has `Status = Owned`, `Valid = Yes`, and
+   `Transferable = Yes`.
+5. Enter a resale price within the maximum resale price shown by the Seller
+   panel.
+6. Click **Verify and list**. The mock backend verifies the ticket information
+   and lists the ticket in the Marketplace if the information is valid.
+
+The `Original price (SGD)` column is used to calculate the buyer total limit
+and the maximum resale price. The `Resale price (SGD)` column is initially
+blank because the Seller chooses the resale price during the demonstration.
+
+### 4. Fee policy
 
 - Seller commission: 3% of the listed resale price.
 - Buyer service fee: 3% of the listed resale price.
@@ -65,7 +87,7 @@ can be purchased.
 - If actual blockchain gas is higher than the platform estimate, the platform
   absorbs the difference.
 
-### 4. Buyer flow
+### 5. Buyer flow
 
 1. The buyer selects a listed ticket from the Marketplace.
 2. The ticket ID can be filled from the Marketplace or entered manually. The
@@ -79,7 +101,7 @@ can be purchased.
 6. The ticket owner changes to the buyer. `TransferCompleted` is recorded in
    the history, and the final ticket status becomes `Owned` for the new buyer.
 
-### 5. Ticket statuses
+### 6. Ticket statuses
 
 - `Owned`: held by the current owner and not listed for resale.
 - `Listed`: verified and available for purchase.
@@ -87,19 +109,19 @@ can be purchased.
 - `TransferPending`: payment is complete and official transfer is pending.
 - `TransferCompleted`: transfer event is complete; after the event, the ticket's current status becomes `Owned` for the new owner.
 
-### 6. Ticket chain memory
+### 7. Ticket chain memory
 
 Each ticket stores a history of important events, including issuance, primary
 purchase, listing, payment confirmation, and ownership transfer. The
 **Ticket chain memory** panel displays this history for the selected ticket.
 
-### 7. AI Agent
+### 8. AI Agent
 
 The Agent panel provides simple prototype explanations about verification,
 resale, price limits, and transfer status. It is a mock interface and does not
 connect to an external AI service.
 
-### 8. Deployment and updates
+### 9. Deployment and updates
 
 The project can be deployed as a Node web service on Render. The GitHub
 repository is connected to Render, so pushing a new commit to the `main`
